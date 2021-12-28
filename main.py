@@ -171,7 +171,7 @@ class CustomCollector(object):
 
 if __name__ == '__main__':
     try:
-        logging.basicConfig(level=logging.INFO, handlers=[logging.StreamHandler()])
+        logging.basicConfig(level=logging.WARN, handlers=[logging.StreamHandler()])
         logging.info('Starting')
 
         if config.PROMETHEUS:
