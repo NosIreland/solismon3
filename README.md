@@ -1,29 +1,15 @@
-# pysolarmanv5
+# SolisMon3
 
-This is a Python module to interact with Solarman (IGEN-Tech) v5 based solar
-inverter data loggers. Modbus RTU frames can be encapsulated in the proprietary
-Solarman v5 protocol and requests sent to the data logger on port tcp/8899.
+This is 3rd iteration of my Solis Inverter monitor. 
+This is based on great work by [jmccrohan](https://github.com/jmccrohan/pysolarmanv5)
 
-This module aims to simplfy the Solarman v5 protocol, exposing interfaces
-similar to that of the uModbus library.
-
-The following Modbus RTU Function Codes are supported:
-|Function Code|Descripton|
-|---|---|
-|3|Read Holding Registers|
-|4|Read Input Registers|
-|6|Write Single Holding Register|
-|16|Write Multiple Holding Registers|
-
-Details of the Solarman v5 protocol have been based on the excellent work of
-[Inverter-Data-Logger by XtheOne](https://github.com/XtheOne/Inverter-Data-Logger/)
-and others.
+The data is pulled directly from Solis WiFi stick. You need to provide serial number and IP address of the stick.
+Metrics are published to MQTT and Prometheus, or just MQTT
+The polled registers and their meaning are stored in registers.py file. The list is not final. 
 
 ## Installation
+Modify the values in config.py and run main.py  
+Or you can build docker image
 
-For the moment, run the steps below. I will publish to PyPI in due course.
-
-- `git clone https://github.com/jmccrohan/pysolarmanv5.git`
-- `cd pysolarmanv5`
-- `pip install .`
-- See example code in `examples`
+## Important
+This is a very early draft version and things might not work as expected but when they do yoh should see 
