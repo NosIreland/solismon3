@@ -32,7 +32,7 @@ class PySolarmanV5:
         self.port = kwargs.get("port", 8899)
         self.mb_slave_id = kwargs.get("mb_slave_id", 1)
         self.verbose = kwargs.get("verbose", 0)
-        self.socket_timeout = kwargs.get("socket_timeout", 60)
+        self.socket_timeout = kwargs.get("socket_timeout", 20)
 
         self._v5_frame_def()
         self.sock = self._create_socket()
