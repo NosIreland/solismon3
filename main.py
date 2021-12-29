@@ -132,7 +132,7 @@ def scrape_solis():
                     house_pwr = item
                 if reg_des[i][0] == 'bypass_load_power':
                     bypass_pwr = item
-                if reg_des[i][0] == 'total_dc_output_power_2':
+                if reg_des[i][0] == 'total_dc_input_power_2':
                     solar_pwr = item
 
     add_modified_metrics(met_pwr_1, met_pwr_2, house_pwr, bypass_pwr, solar_pwr, batt_dir, batt_pwr)
