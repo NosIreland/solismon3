@@ -1,17 +1,18 @@
-FROM python:3.8.0-alpine
+FROM python:3.10.1-slim
 
 EXPOSE 18000
 
 LABEL MAINTAINER="Andrius Kozeniauskas"
 LABEL NAME=solismon3
 
-RUN mkdir /solismon3
-COPY . /solismon3
+RUN mkdir /solismon3 \
+  && mkdir /solismon3/pysolarmanv5
+COPY *.py *.txt /solismon3/
+COPY pysolarmanv5/* /solismon3/pysolarmanv5/
+
 WORKDIR /solismon3
-RUN apk --update add python py-pip openssl ca-certificates py-openssl wget
-RUN apk --update add --virtual build-dependencies libffi-dev openssl-dev python-dev py-pip build-base \
-  && pip install --upgrade pip \
-  && pip install -r requirements.txt \
-  && apk del build-dependencies
+
+RUN pip install --upgrade pip \
+  && pip3 install -r requirements.txt
 
 CMD [ "python", "./main.py" ]

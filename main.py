@@ -14,10 +14,8 @@ debug = 0
 
 
 def add_modified_metrics(met_pwr_1, met_pwr_2, house_pwr, bypass_pwr, solar_pwr, batt_dir, batt_pwr):
-    global metrics_list
     met_pwr = met_pwr_1 - met_pwr_2
     total_load = house_pwr + bypass_pwr
-    solar_to_house = total_load - solar_pwr
 
     # Present battery modified metrics
     if batt_dir == 0:
@@ -34,7 +32,7 @@ def add_modified_metrics(met_pwr_1, met_pwr_2, house_pwr, bypass_pwr, solar_pwr,
         metrics_list.append(['grid_to_battery_power_in_modified', 'Grid to Battery Power In(modified)', batt_pwr])
 
     # Present meter modified metrics
-    if met_pwr >= 0:
+    if met_pwr > 0:
         metrics_list.append(['meter_power_in_modified', 'Meter Power In(modified)', met_pwr])
         metrics_list.append(['meter_power_modified', 'Meter Power(modified)', met_pwr])
         metrics_list.append(['meter_power_out_modified', 'Meter Power Out(modified)', 0])
@@ -45,10 +43,12 @@ def add_modified_metrics(met_pwr_1, met_pwr_2, house_pwr, bypass_pwr, solar_pwr,
 
     # Present load modified metrics
     metrics_list.append(['total_load_power_modified', 'Total Load Power(modified)', total_load])
-    if solar_to_house > 0:
-        metrics_list.append(['solar_to_house_power_modified', 'Solar To House Power(modified)', solar_pwr])
-    if solar_to_house <= 0:
-        metrics_list.append(['solar_to_house_power_modified', 'Solar To House Power(modified)', total_load])
+
+    if solar_pwr > 0:
+        metrics_list.append(['solar_to_house_power_modified', 'Solar To House Power(modified)',
+                             (total_load - solar_pwr) * -1])
+    if solar_pwr == 0:
+        metrics_list.append(['solar_to_house_power_modified', 'Solar To House Power(modified)', 0])
 
     logging.info('Added modified metrics')
 
@@ -57,7 +57,7 @@ def scrape_solis(debug):
     global metrics_list
     metrics_list = []
     try:
-        logging.info('Connecting to MODBUS Server')
+        logging.info('Connecting to Solis Modbus')
         modbus = PySolarmanV5(
             config.INVERTER_IP, config.INVERTER_SERIAL, port=config.INVERTER_PORT, mb_slave_id=1, verbose=debug)
     except Exception as e:
@@ -73,14 +73,16 @@ def scrape_solis(debug):
         # Sometimes the query fails this will retry it forever(probably needs counter)
         while True:
             try:
+                logging.debug("Scrapping registers " + str(reg) + " length " + str(reg_len))
                 # read registers at address , store result in regs list
                 regs = (modbus.read_input_registers(register_addr=reg, quantity=reg_len))
 
             except Exception as e:
-                logging.error('Cannot read registers: ', repr(e))
+                logging.error('Cannot read registers ' + str(reg) + " length " + str(reg_len), repr(e))
+                logging.error('Retrying in 3s')
+                sleep(3)  # hold before retry
                 continue
             break
-        logging.info("register address #" + str(reg) + " length " + str(reg_len))
 
         # Convert time to epoch
         if reg == 33022:
@@ -106,7 +108,7 @@ def scrape_solis(debug):
             else:
                 inv_sec = str(regs[5])
             inv_time = inv_year + inv_month + inv_day + inv_hour + inv_min + inv_sec
-            print('Inverter time: ' + inv_time)
+            logging.info('Solis Inverter time: ' + str(inv_time))
             time_tuple = strptime(inv_time, '%Y-%m-%d %H:%M:%S')
             time_epoch = mktime(time_tuple)
             metrics_list.append(['system_epoch', 'System Epoch Time', time_epoch])
@@ -143,15 +145,18 @@ def scrape_solis(debug):
 
 def publish_mqtt():
     try:
+        if not config.PROMETHEUS:
+            scrape_solis(debug)
+
         logging.info('Connecting to MQTT Server')
         mqttc = mqtt.Client()
         mqttc.connect(config.MQTT_SERVER, config.MQTT_PORT, config.MQTT_KEEPALIVE)
         mqttc.on_connect = logging.info("Connected to MQTT " + str(config.MQTT_SERVER) + ":" + str(config.MQTT_PORT))
 
-        if not config.PROMETHEUS:
-            scrape_solis(debug)
+        logging.info('Publishing MQTT')
         for metric in metrics_list:
-            mqttc.publish(config.MQTT_TOPIC + '/' + str(metric[0]), metric[2])
+            mqttc.publish(topic=config.MQTT_TOPIC + '/' + str(metric[0]), payload=metric[2])
+            sleep(0.01)  # Need this for mosquitto MQTT, otherwise it is too many for it
 
         mqttc.disconnect()
     except Exception as e:
@@ -173,17 +178,17 @@ class CustomCollector(object):
 if __name__ == '__main__':
     try:
         if config.DEBUG:
-            logging.basicConfig(level=logging.INFO, handlers=[logging.StreamHandler()])
+            logging.basicConfig(level=logging.DEBUG, handlers=[logging.StreamHandler()])
             debug = 1
         else:
-            logging.basicConfig(level=logging.WARN, handlers=[logging.StreamHandler()])
+            logging.basicConfig(level=logging.INFO, handlers=[logging.StreamHandler()])
             debug = 0
 
         logging.info('Starting')
 
         if config.PROMETHEUS:
-            logging.info('Starting Web Server')
-            start_http_server(18000)
+            logging.info('Starting Web Server for Prometheus on port: ' + str(config.PROMETHEUS_PORT))
+            start_http_server(config.PROMETHEUS_PORT)
 
             REGISTRY.register(CustomCollector())
             while True:
