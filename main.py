@@ -54,6 +54,7 @@ def add_modified_metrics(met_pwr_1, met_pwr_2, house_pwr, bypass_pwr, solar_pwr,
 
 
 def scrape_solis(debug):
+    del metrics_list[:]
     regs_ignored = 0
     try:
         logging.info('Connecting to Solis Modbus')
@@ -160,7 +161,7 @@ def publish_mqtt():
         logging.info('Publishing MQTT')
         for metric in metrics_list:
             mqttc.publish(topic=config.MQTT_TOPIC + '/' + str(metric[0]), payload=metric[2])
-            sleep(0.01)  # Need this for mosquitto MQTT, otherwise it is too many for it
+            #sleep(0.01)  # Need this for mosquitto MQTT, otherwise it is too many for it
 
         mqttc.disconnect()
     except Exception as e:
@@ -178,14 +179,15 @@ class CustomCollector(object):
             yield GaugeMetricFamily(metric[0], metric[1], value=metric[2])
 
 
-
 if __name__ == '__main__':
     try:
         if config.DEBUG:
-            logging.basicConfig(level=logging.DEBUG, handlers=[logging.StreamHandler()])
+            logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', level=logging.DEBUG,
+                                datefmt='%Y-%m-%d %H:%M:%S')
             debug = 1
         else:
-            logging.basicConfig(level=logging.INFO, handlers=[logging.StreamHandler()])
+            logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', level=logging.INFO,
+                                datefmt='%Y-%m-%d %H:%M:%S')
             debug = 0
 
         logging.info('Starting')
