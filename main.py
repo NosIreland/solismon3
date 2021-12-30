@@ -54,8 +54,7 @@ def add_modified_metrics(met_pwr_1, met_pwr_2, house_pwr, bypass_pwr, solar_pwr,
 
 
 def scrape_solis(debug):
-    global metrics_list
-    metrics_list = []
+    regs_ignored = 0
     try:
         logging.info('Connecting to Solis Modbus')
         modbus = PySolarmanV5(
@@ -114,8 +113,9 @@ def scrape_solis(debug):
             metrics_list.append(['system_epoch', 'System Epoch Time', time_epoch])
 
         # Add metric to list
+
         for (i, item) in enumerate(regs):
-            if reg_des[i][0] != 'not_used':
+            if '*' not in reg_des[i][0]:
                 metrics_list.append([reg_des[i][0], reg_des[i][1], item])
 
                 # Get battery metric for modification
@@ -137,6 +137,10 @@ def scrape_solis(debug):
                     bypass_pwr = item
                 if reg_des[i][0] == 'total_dc_input_power_2':
                     solar_pwr = item
+            else:
+                regs_ignored += 1
+
+    logging.info('Ignored registers: ' + str(regs_ignored))
 
     add_modified_metrics(met_pwr_1, met_pwr_2, house_pwr, bypass_pwr, solar_pwr, batt_dir, batt_pwr)
 
@@ -169,10 +173,10 @@ class CustomCollector(object):
 
     def collect(self):
         scrape_solis(debug)
-
+        publish_mqtt()
         for metric in metrics_list:
             yield GaugeMetricFamily(metric[0], metric[1], value=metric[2])
-        publish_mqtt()
+
 
 
 if __name__ == '__main__':
