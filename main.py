@@ -10,6 +10,7 @@ from pysolarmanv5.pysolarmanv5 import PySolarmanV5
 
 # How often to check(does not apply on prometheus)
 metrics_list = []
+debug = 0
 
 
 def add_modified_metrics(met_pwr_1, met_pwr_2, house_pwr, bypass_pwr, solar_pwr, batt_dir, batt_pwr):
@@ -47,18 +48,18 @@ def add_modified_metrics(met_pwr_1, met_pwr_2, house_pwr, bypass_pwr, solar_pwr,
     if solar_to_house > 0:
         metrics_list.append(['solar_to_house_power_modified', 'Solar To House Power(modified)', solar_to_house])
     if solar_to_house <= 0:
-        metrics_list.append(['solar_to_house_power_modified', 'Solar To House Power(modified)', solar_pwr])
+        metrics_list.append(['solar_to_house_power_modified', 'Solar To House Power(modified)', 0])
 
     logging.info('Added modified metrics')
 
 
-def scrape_solis():
+def scrape_solis(debug):
     global metrics_list
     metrics_list = []
     try:
         logging.info('Connecting to MODBUS Server')
         modbus = PySolarmanV5(
-            config.INVERTER_IP, config.INVERTER_SERIAL, port=config.INVERTER_PORT, mb_slave_id=1, verbose=0)
+            config.INVERTER_IP, config.INVERTER_SERIAL, port=config.INVERTER_PORT, mb_slave_id=1, verbose=debug)
     except Exception as e:
         logging.error('Could not connect to Inverter MODBUS', repr(e))
 
@@ -148,7 +149,7 @@ def publish_mqtt():
         mqttc.on_connect = logging.info("Connected to MQTT " + str(config.MQTT_SERVER) + ":" + str(config.MQTT_PORT))
 
         if not config.PROMETHEUS:
-            scrape_solis()
+            scrape_solis(debug)
         for metric in metrics_list:
             mqttc.publish(config.MQTT_TOPIC + '/' + str(metric[0]), metric[2])
 
@@ -162,7 +163,7 @@ class CustomCollector(object):
         pass
 
     def collect(self):
-        scrape_solis()
+        scrape_solis(debug)
 
         for metric in metrics_list:
             yield GaugeMetricFamily(metric[0], metric[1], value=metric[2])
@@ -171,7 +172,13 @@ class CustomCollector(object):
 
 if __name__ == '__main__':
     try:
-        logging.basicConfig(level=logging.WARN, handlers=[logging.StreamHandler()])
+        if config.DEBUG:
+            logging.basicConfig(level=logging.INFO, handlers=[logging.StreamHandler()])
+            debug = 1
+        else:
+            logging.basicConfig(level=logging.WARN, handlers=[logging.StreamHandler()])
+            debug = 0
+
         logging.info('Starting')
 
         if config.PROMETHEUS:
