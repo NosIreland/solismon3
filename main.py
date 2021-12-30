@@ -17,7 +17,7 @@ def add_modified_metrics(met_pwr_1, met_pwr_2, house_pwr, bypass_pwr, solar_pwr,
     global metrics_list
     met_pwr = met_pwr_1 - met_pwr_2
     total_load = house_pwr + bypass_pwr
-    solar_to_house = solar_pwr - total_load
+    solar_to_house = total_load - solar_pwr
 
     # Present battery modified metrics
     if batt_dir == 0:
@@ -46,9 +46,9 @@ def add_modified_metrics(met_pwr_1, met_pwr_2, house_pwr, bypass_pwr, solar_pwr,
     # Present load modified metrics
     metrics_list.append(['total_load_power_modified', 'Total Load Power(modified)', total_load])
     if solar_to_house > 0:
-        metrics_list.append(['solar_to_house_power_modified', 'Solar To House Power(modified)', solar_to_house])
+        metrics_list.append(['solar_to_house_power_modified', 'Solar To House Power(modified)', solar_pwr])
     if solar_to_house <= 0:
-        metrics_list.append(['solar_to_house_power_modified', 'Solar To House Power(modified)', 0])
+        metrics_list.append(['solar_to_house_power_modified', 'Solar To House Power(modified)', total_load])
 
     logging.info('Added modified metrics')
 
