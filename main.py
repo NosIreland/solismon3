@@ -3,58 +3,62 @@ import registers
 import logging
 import paho.mqtt.client as mqtt
 from sys import exit
+from json import dumps
 from time import strptime, mktime, sleep
 from prometheus_client import start_http_server
 from prometheus_client.core import GaugeMetricFamily, REGISTRY
 from pysolarmanv5.pysolarmanv5 import PySolarmanV5
 
-# How often to check(does not apply on prometheus)
-metrics_list = []
+metrics_dict = {}
 debug = 0
 
 
-def add_modified_metrics(met_pwr_1, met_pwr_2, house_pwr, bypass_pwr, solar_pwr, batt_dir, batt_pwr):
-    met_pwr = met_pwr_1 - met_pwr_2
-    total_load = house_pwr + bypass_pwr
+def add_modified_metrics(custom_metrics_dict):
+    met_pwr = custom_metrics_dict['meter_active_power_1'] - custom_metrics_dict['meter_active_power_2']
+    total_load = custom_metrics_dict['house_load_power'] + custom_metrics_dict['bypass_load_power']
 
     # Present battery modified metrics
-    if batt_dir == 0:
-        metrics_list.append(['battery_power_modified', 'Battery Power(modified)', batt_pwr])
-        metrics_list.append(['battery_power_in_modified', 'Battery Power In(modified)', batt_pwr])
-        metrics_list.append(['battery_power_out_modified', 'Battery Power Out(modified)', 0])
-        metrics_list.append(['grid_to_battery_power_in_modified', 'Grid to Battery Power In(modified)', 0])
-    if batt_dir == 1:
-        metrics_list.append(['battery_power_modified', 'Battery Power(modified)', batt_pwr * -1])
-        metrics_list.append(['battery_power_out_modified', 'Battery Power Out(modified)', batt_pwr])
-        metrics_list.append(['battery_power_in_modified', 'Battery Power In(modified)', 0])
-        metrics_list.append(['grid_to_battery_power_in_modified', 'Grid to Battery Power In(modified)', 0])
-    if total_load < met_pwr and batt_pwr > 0:
-        metrics_list.append(['grid_to_battery_power_in_modified', 'Grid to Battery Power In(modified)', batt_pwr])
+    if custom_metrics_dict['battery_current_direction'] == 0:
+        metrics_dict['battery_power_modified'] = 'Battery Power(modified)', custom_metrics_dict['battery_power_2']
+        metrics_dict['battery_power_in_modified'] = 'Battery Power In(modified)', custom_metrics_dict['battery_power_2']
+        metrics_dict['battery_power_out_modified'] = 'Battery Power Out(modified)', 0
+        metrics_dict['grid_to_battery_power_in_modified'] = 'Grid to Battery Power In(modified)', 0
+    else:
+        metrics_dict['battery_power_modified'] = 'Battery Power(modified)', custom_metrics_dict['battery_power_2']  # negative
+        metrics_dict['battery_power_out_modified'] = 'Battery Power Out(modified)', custom_metrics_dict['battery_power_2']
+        metrics_dict['battery_power_in_modified'] = 'Battery Power In(modified)', 0
+        metrics_dict['grid_to_battery_power_in_modified'] = 'Grid to Battery Power In(modified)', 0
+
+    if total_load < met_pwr and custom_metrics_dict['battery_power_2'] > 0:
+        metrics_dict['grid_to_battery_power_in_modified'] = 'Grid to Battery Power In(modified)', custom_metrics_dict['battery_power_2']
 
     # Present meter modified metrics
     if met_pwr > 0:
-        metrics_list.append(['meter_power_in_modified', 'Meter Power In(modified)', met_pwr])
-        metrics_list.append(['meter_power_modified', 'Meter Power(modified)', met_pwr])
-        metrics_list.append(['meter_power_out_modified', 'Meter Power Out(modified)', 0])
-    if met_pwr <= 0:
-        metrics_list.append(['meter_power_out_modified', 'Meter Power Out(modified)', met_pwr * -1])
-        metrics_list.append(['meter_power_in_modified', 'Meter Power In(modified)', 0])
-        metrics_list.append(['meter_power_modified', 'Meter Power(modified)', met_pwr])
+        metrics_dict['meter_power_in_modified'] = 'Meter Power In(modified)', met_pwr
+        metrics_dict['meter_power_modified'] = 'Meter Power(modified)', met_pwr
+        metrics_dict['meter_power_out_modified'] = 'Meter Power Out(modified)', 0
+    else:
+        metrics_dict['meter_power_out_modified'] = 'Meter Power Out(modified)', met_pwr  # negative
+        metrics_dict['meter_power_in_modified'] = 'Meter Power In(modified)', 0
+        metrics_dict['meter_power_modified'] = 'Meter Power(modified)', met_pwr
 
     # Present load modified metrics
-    metrics_list.append(['total_load_power_modified', 'Total Load Power(modified)', total_load])
+    metrics_dict['total_load_power_modified'] = 'Total Load Power(modified)', total_load
 
-    if solar_pwr > 0:
-        metrics_list.append(['solar_to_house_power_modified', 'Solar To House Power(modified)',
-                             (total_load - solar_pwr) * -1])
-    if solar_pwr == 0:
-        metrics_list.append(['solar_to_house_power_modified', 'Solar To House Power(modified)', 0])
+    if 0 < custom_metrics_dict['total_dc_input_power_2'] <= total_load:
+        metrics_dict['solar_to_house_power_modified'] = 'Solar To House Power(modified)', custom_metrics_dict['total_dc_input_power_2']
+    elif custom_metrics_dict['total_dc_input_power_2'] == 0:
+        metrics_dict['solar_to_house_power_modified'] = 'Solar To House Power(modified)', 0
+    elif custom_metrics_dict['total_dc_input_power_2'] > total_load:
+        metrics_dict['solar_to_house_power_modified'] = 'Solar To House Power(modified)', total_load
 
     logging.info('Added modified metrics')
 
 
 def scrape_solis(debug):
-    del metrics_list[:]
+    custom_metrics_dict = {}
+    global metrics_dict
+    metrics_dict = {}
     regs_ignored = 0
     try:
         logging.info('Connecting to Solis Modbus')
@@ -111,59 +115,63 @@ def scrape_solis(debug):
             logging.info('Solis Inverter time: ' + str(inv_time))
             time_tuple = strptime(inv_time, '%Y-%m-%d %H:%M:%S')
             time_epoch = mktime(time_tuple)
-            metrics_list.append(['system_epoch', 'System Epoch Time', time_epoch])
+            metrics_dict['system_epoch'] = 'System Epoch Time', time_epoch
 
         # Add metric to list
 
         for (i, item) in enumerate(regs):
             if '*' not in reg_des[i][0]:
-                metrics_list.append([reg_des[i][0], reg_des[i][1], item])
+                metrics_dict[reg_des[i][0]] = reg_des[i][1], item
 
+                # Add custom metrics to dict
                 # Get battery metric for modification
                 if reg_des[i][0] == 'battery_power_2':
-                    batt_pwr = item
-                if reg_des[i][0] == 'battery_current_direction':
-                    batt_dir = item
+                    custom_metrics_dict[reg_des[i][0]] = item
+                elif reg_des[i][0] == 'battery_current_direction':
+                    custom_metrics_dict[reg_des[i][0]] = item
 
                 # Get grid metric for modification
-                if reg_des[i][0] == 'meter_active_power_1':
-                    met_pwr_1 = item
-                if reg_des[i][0] == 'meter_active_power_2':
-                    met_pwr_2 = item
+                elif reg_des[i][0] == 'meter_active_power_1':
+                    custom_metrics_dict[reg_des[i][0]] = item
+                elif reg_des[i][0] == 'meter_active_power_2':
+                    custom_metrics_dict[reg_des[i][0]] = item
 
                 # Get load metric for modification
-                if reg_des[i][0] == 'house_load_power':
-                    house_pwr = item
-                if reg_des[i][0] == 'bypass_load_power':
-                    bypass_pwr = item
-                if reg_des[i][0] == 'total_dc_input_power_2':
-                    solar_pwr = item
+                elif reg_des[i][0] == 'house_load_power':
+                    custom_metrics_dict[reg_des[i][0]] = item
+                elif reg_des[i][0] == 'total_dc_input_power_2':
+                    custom_metrics_dict[reg_des[i][0]] = item
+                elif reg_des[i][0] == 'bypass_load_power':
+                    custom_metrics_dict[reg_des[i][0]] = item
+
             else:
                 regs_ignored += 1
 
     logging.info('Ignored registers: ' + str(regs_ignored))
-
-    add_modified_metrics(met_pwr_1, met_pwr_2, house_pwr, bypass_pwr, solar_pwr, batt_dir, batt_pwr)
-
+    add_modified_metrics(custom_metrics_dict)
     logging.info('Scraped')
 
 
 def publish_mqtt():
+    mqtt_dict = {}
     try:
         if not config.PROMETHEUS:
             scrape_solis(debug)
 
-        logging.info('Connecting to MQTT Server')
+        # Resize dictionary and convert to JSON
+        for metric, value in metrics_dict.items():
+            mqtt_dict[metric] = value[1]
+        mqtt_json = dumps(mqtt_dict)
+
         mqttc = mqtt.Client()
         mqttc.connect(config.MQTT_SERVER, config.MQTT_PORT, config.MQTT_KEEPALIVE)
         mqttc.on_connect = logging.info("Connected to MQTT " + str(config.MQTT_SERVER) + ":" + str(config.MQTT_PORT))
 
         logging.info('Publishing MQTT')
-        for metric in metrics_list:
-            mqttc.publish(topic=config.MQTT_TOPIC + '/' + str(metric[0]), payload=metric[2])
-            #sleep(0.01)  # Need this for mosquitto MQTT, otherwise it is too many for it
+        mqttc.publish(topic=config.MQTT_TOPIC, payload=mqtt_json)
 
         mqttc.disconnect()
+
     except Exception as e:
         logging.error('Could not connect to MQTT', repr(e))
 
@@ -175,8 +183,9 @@ class CustomCollector(object):
     def collect(self):
         scrape_solis(debug)
         publish_mqtt()
-        for metric in metrics_list:
-            yield GaugeMetricFamily(metric[0], metric[1], value=metric[2])
+
+        for metric, value in metrics_dict.items():
+            yield GaugeMetricFamily(metric, value[0], value=value[1])
 
 
 if __name__ == '__main__':
