@@ -8,4 +8,5 @@ CHECK_INTERVAL = 60     # how often to check only applies to mqtt
 MQTT_KEEPALIVE = 60
 PROMETHEUS = False
 PROMETHEUS_PORT = 18000
+MODIFIED_METRICS = True
 DEBUG = False

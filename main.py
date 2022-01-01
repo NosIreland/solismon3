@@ -24,7 +24,7 @@ def add_modified_metrics(custom_metrics_dict):
         metrics_dict['battery_power_out_modified'] = 'Battery Power Out(modified)', 0
         metrics_dict['grid_to_battery_power_in_modified'] = 'Grid to Battery Power In(modified)', 0
     else:
-        metrics_dict['battery_power_modified'] = 'Battery Power(modified)', custom_metrics_dict['battery_power_2']  # negative
+        metrics_dict['battery_power_modified'] = 'Battery Power(modified)', custom_metrics_dict['battery_power_2'] * -1 # negative
         metrics_dict['battery_power_out_modified'] = 'Battery Power Out(modified)', custom_metrics_dict['battery_power_2']
         metrics_dict['battery_power_in_modified'] = 'Battery Power In(modified)', 0
         metrics_dict['grid_to_battery_power_in_modified'] = 'Grid to Battery Power In(modified)', 0
@@ -38,7 +38,7 @@ def add_modified_metrics(custom_metrics_dict):
         metrics_dict['meter_power_modified'] = 'Meter Power(modified)', met_pwr
         metrics_dict['meter_power_out_modified'] = 'Meter Power Out(modified)', 0
     else:
-        metrics_dict['meter_power_out_modified'] = 'Meter Power Out(modified)', met_pwr  # negative
+        metrics_dict['meter_power_out_modified'] = 'Meter Power Out(modified)', met_pwr * - 1  # negative
         metrics_dict['meter_power_in_modified'] = 'Meter Power In(modified)', 0
         metrics_dict['meter_power_modified'] = 'Meter Power(modified)', met_pwr
 
@@ -123,7 +123,7 @@ def scrape_solis(debug):
             if '*' not in reg_des[i][0]:
                 metrics_dict[reg_des[i][0]] = reg_des[i][1], item
 
-                # Add custom metrics to dict
+                # Add custom metrics to custom_metrics_dict
                 # Get battery metric for modification
                 if reg_des[i][0] == 'battery_power_2':
                     custom_metrics_dict[reg_des[i][0]] = item
@@ -148,7 +148,10 @@ def scrape_solis(debug):
                 regs_ignored += 1
 
     logging.info('Ignored registers: ' + str(regs_ignored))
-    add_modified_metrics(custom_metrics_dict)
+
+    # Create modified metrics
+    if config.MODIFIED_METRICS:
+        add_modified_metrics(custom_metrics_dict)
     logging.info('Scraped')
 
 
