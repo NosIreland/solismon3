@@ -65,7 +65,12 @@ def scrape_solis(debug):
         modbus = PySolarmanV5(
             config.INVERTER_IP, config.INVERTER_SERIAL, port=config.INVERTER_PORT, mb_slave_id=1, verbose=debug)
     except Exception as e:
-        logging.error('Could not connect to Inverter MODBUS', repr(e))
+        if 'timed out' in repr(e):
+            logging.error('Timed out. Verify if IP address is reachable. Exiting')
+            exit(1)
+        else:
+            logging.error(f'Could not connect to Inverter MODBUS {repr(e)}')
+            exit(1)
 
     logging.info('Scraping...')
 
@@ -77,14 +82,18 @@ def scrape_solis(debug):
         # Sometimes the query fails this will retry it forever(probably needs counter)
         while True:
             try:
-                logging.debug("Scrapping registers " + str(reg) + " length " + str(reg_len))
+                logging.debug(f'Scrapping registers {reg} length {reg_len}')
                 # read registers at address , store result in regs list
-                regs = (modbus.read_input_registers(register_addr=reg, quantity=reg_len))
-
+                regs = modbus.read_input_registers(register_addr=reg, quantity=reg_len)
+                logging.debug(regs)
             except Exception as e:
-                logging.error('Cannot read registers ' + str(reg) + " length " + str(reg_len), repr(e))
-                logging.error('Retrying in 3s')
-                sleep(3)  # hold before retry
+                if 'CRC' in repr(e):
+                    logging.error('CRC Error found. Most likely wrong WiFi Serial! Exiting')
+                    exit(1)
+                else:
+                    logging.error(f'Cannot read registers {reg} length {reg_len} {repr(e)}')
+                    logging.error('Retrying in 3s')
+                    sleep(3)  # hold before retry
                 continue
             break
 
@@ -112,7 +121,7 @@ def scrape_solis(debug):
             else:
                 inv_sec = str(regs[5])
             inv_time = inv_year + inv_month + inv_day + inv_hour + inv_min + inv_sec
-            logging.info('Solis Inverter time: ' + str(inv_time))
+            logging.info(f'Solis Inverter time: {inv_time}')
             time_tuple = strptime(inv_time, '%Y-%m-%d %H:%M:%S')
             time_epoch = mktime(time_tuple)
             metrics_dict['system_epoch'] = 'System Epoch Time', time_epoch
@@ -147,7 +156,7 @@ def scrape_solis(debug):
             else:
                 regs_ignored += 1
 
-    logging.info('Ignored registers: ' + str(regs_ignored))
+    logging.info(f'Ignored registers: {regs_ignored}')
 
     # Create modified metrics
     if config.MODIFIED_METRICS:
@@ -168,7 +177,7 @@ def publish_mqtt():
 
         mqttc = mqtt.Client()
         mqttc.connect(config.MQTT_SERVER, config.MQTT_PORT, config.MQTT_KEEPALIVE)
-        mqttc.on_connect = logging.info("Connected to MQTT " + str(config.MQTT_SERVER) + ":" + str(config.MQTT_PORT))
+        mqttc.on_connect = logging.info(f'Connected to MQTT {config.MQTT_SERVER}:{config.MQTT_PORT}')
 
         logging.info('Publishing MQTT')
         mqttc.publish(topic=config.MQTT_TOPIC, payload=mqtt_json)
@@ -176,7 +185,7 @@ def publish_mqtt():
         mqttc.disconnect()
 
     except Exception as e:
-        logging.error('Could not connect to MQTT', repr(e))
+        logging.error(f'Could not connect to MQTT {repr(e)}')
 
 
 class CustomCollector(object):
@@ -205,7 +214,7 @@ if __name__ == '__main__':
         logging.info('Starting')
 
         if config.PROMETHEUS:
-            logging.info('Starting Web Server for Prometheus on port: ' + str(config.PROMETHEUS_PORT))
+            logging.info(f'Starting Web Server for Prometheus on port: {config.PROMETHEUS_PORT}')
             start_http_server(config.PROMETHEUS_PORT)
 
             REGISTRY.register(CustomCollector())
@@ -218,5 +227,5 @@ if __name__ == '__main__':
                 sleep(config.CHECK_INTERVAL)
 
     except Exception as e:
-        logging.error('Cannot start: ', repr(e))
+        logging.error(f'Cannot start: {repr(e)}')
         exit(1)
