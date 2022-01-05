@@ -65,12 +65,8 @@ def scrape_solis(debug):
         modbus = PySolarmanV5(
             config.INVERTER_IP, config.INVERTER_SERIAL, port=config.INVERTER_PORT, mb_slave_id=1, verbose=debug)
     except Exception as e:
-        if 'timed out' in repr(e):
-            logging.error('Timed out. Verify if IP address is reachable. Exiting')
-            exit(1)
-        else:
-            logging.error(f'Could not connect to Inverter MODBUS {repr(e)}')
-            exit(1)
+        logging.error(f'{repr(e)}. Exiting')
+        exit(1)
 
     logging.info('Scraping...')
 
@@ -87,13 +83,9 @@ def scrape_solis(debug):
                 regs = modbus.read_input_registers(register_addr=reg, quantity=reg_len)
                 logging.debug(regs)
             except Exception as e:
-                if 'CRC' in repr(e):
-                    logging.error('CRC Error found. Most likely wrong WiFi Serial! Exiting')
-                    exit(1)
-                else:
-                    logging.error(f'Cannot read registers {reg} length {reg_len} {repr(e)}')
-                    logging.error('Retrying in 3s')
-                    sleep(3)  # hold before retry
+                logging.error(f'Cannot read registers {reg} length {reg_len} {repr(e)}')
+                logging.error('Retrying in 3s')
+                sleep(3)  # hold before retry
                 continue
             break
 
