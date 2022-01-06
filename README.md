@@ -9,7 +9,9 @@ The polled registers and their meaning are stored in registers.py file. The list
 
 ## Installation
 Modify the values in config.py and run main.py  
-Or you can build docker image
+
+## Running in docker
+docker run -it -d --restart unless-stopped --name solismon3 -p 18000:18000 nosireland/solismon3
 
 ## Important
 This is a very early draft version and things might not work as expected but when they do yoh should see 
