@@ -75,7 +75,8 @@ def scrape_solis(debug):
         reg_len = len(r[1])
         reg_des = r[1]
 
-        # Sometimes the query fails this will retry it forever(probably needs counter)
+        # Sometimes the query fails this will retry 3 times before exiting
+        c = 0
         while True:
             try:
                 logging.debug(f'Scrapping registers {reg} length {reg_len}')
@@ -83,10 +84,15 @@ def scrape_solis(debug):
                 regs = modbus.read_input_registers(register_addr=reg, quantity=reg_len)
                 logging.debug(regs)
             except Exception as e:
-                logging.error(f'Cannot read registers {reg} length {reg_len} {repr(e)}')
-                logging.error('Retrying in 3s')
-                sleep(3)  # hold before retry
-                continue
+                if c == 3:
+                    logging.error(f'Cannot read registers {reg} length{reg_len}. Tried {c} times. Exiting {repr(e)}')
+                    exit(1)
+                else:
+                    c += 1
+                    logging.error(f'Cannot read registers {reg} length {reg_len} {repr(e)}')
+                    logging.error(f'Retry {c} in 3s')
+                    sleep(3)  # hold before retry
+                    continue
             break
 
         # Convert time to epoch
