@@ -1,5 +1,5 @@
-import config
-import registers
+import config.config as config
+import config.registers as registers
 import logging
 import paho.mqtt.client as mqtt
 from sys import exit

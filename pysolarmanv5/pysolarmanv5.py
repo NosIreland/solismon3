@@ -2,7 +2,6 @@
 """pysolarmanv5.py"""
 import struct
 import socket
-import binascii
 
 from umodbus.client.serial import rtu
 
@@ -20,7 +19,7 @@ class PySolarmanV5:
     proprietary Solarman v5 protocol and requests sent to the data logger on
     port tcp/8899.
 
-    This module aims to simplfy the Solarman v5 protocol, exposing interfaces
+    This module aims to simplify the Solarman v5 protocol, exposing interfaces
     similar to that of the uModbus library.
     """
 
@@ -55,16 +54,16 @@ class PySolarmanV5:
         https://github.com/XtheOne/Inverter-Data-Logger/issues/3#issuecomment-878911661
         https://github.com/XtheOne/Inverter-Data-Logger/blob/Experimental_Frame_Version_5_support/InverterLib.py#L48
         """
-        self.v5_start = binascii.unhexlify("A5")
-        self.v5_length = binascii.unhexlify("1700")
-        self.v5_controlcode = binascii.unhexlify("1045")
-        self.v5_serial = binascii.unhexlify("0000")
+        self.v5_start = bytes.fromhex("A5")
+        self.v5_length = bytes.fromhex("1700")
+        self.v5_controlcode = bytes.fromhex("1045")
+        self.v5_serial = bytes.fromhex("0000")
         self.v5_loggerserial = struct.unpack(">I", struct.pack("<I", int(self.serial)))[
             0
         ].to_bytes(4, byteorder="big")
-        self.v5_datafield = binascii.unhexlify("020000000000000000000000000000")
-        self.v5_checksum = binascii.unhexlify("00")
-        self.v5_end = binascii.unhexlify("15")  # Logger End code
+        self.v5_datafield = bytes.fromhex("020000000000000000000000000000")
+        self.v5_checksum = bytes.fromhex("00")
+        self.v5_end = bytes.fromhex("15")  # Logger End code
 
     @staticmethod
     def _calculate_v5_frame_checksum(frame):
@@ -101,30 +100,27 @@ class PySolarmanV5:
         2) V5 checksum is correct
         3) V5 data logger serial number is correct (in most (all?) instances the
            reply is correct, but request is incorrect)
-        4) V5 datafield contains the correct prefix (0x02 in byte 11)
-        5) Modbus RTU frame contains the correct prefix (0x61 in byte 24)
+        4) V5 control code is correct (0x1015); Logger ocassionally sends
+           spurious replies with 0x1047 control codes
+        5) V5 datafield contains the correct prefix (0x02 in byte 11)
         6) Modbus RTU frame length is at least 5 bytes (vast majority of RTU
            frames will be >=6 bytes, but valid 5 byte error/exception RTU frames
            are possible)
         """
         frame_len = len(v5_frame)
 
-        if (bytes([v5_frame[0]]) != self.v5_start) or (
-            bytes([v5_frame[frame_len - 1]]) != self.v5_end
+        if (v5_frame[0] != int.from_bytes(self.v5_start, byteorder="big")) or (
+            v5_frame[frame_len - 1] != int.from_bytes(self.v5_end, byteorder="big")
         ):
             raise V5FrameError("V5 frame contains invalid header or trailer values")
-
         if v5_frame[frame_len - 2] != self._calculate_v5_frame_checksum(v5_frame):
             raise V5FrameError("V5 frame contains invalid V5 checksum")
-
         if v5_frame[7:11] != self.v5_loggerserial:
             raise V5FrameError("V5 frame contains incorrect data logger serial number")
-
-        if bytes([v5_frame[11]]) != binascii.unhexlify("02"):
+        if v5_frame[3:5] != bytes.fromhex("1015"):
+            raise V5FrameError("V5 frame contains incorrect control code")
+        if v5_frame[11] != int("02", 16):
             raise V5FrameError("V5 frame contains invalid datafield prefix")
-
-        if bytes([v5_frame[24]]) != binascii.unhexlify("61"):
-            raise V5FrameError("V5 frame contains invalid a Modbus RTU frame prefix")
 
         modbus_frame = v5_frame[25 : frame_len - 2]
 
@@ -136,14 +132,14 @@ class PySolarmanV5:
     def _send_receive_v5_frame(self, data_logging_stick_frame):
         """Send v5 frame to the data logger and receive response"""
         if self.verbose == 1:
-            print("SENT: " + str(binascii.hexlify(data_logging_stick_frame, b" ")))
+            print("SENT: " + data_logging_stick_frame.hex(" "))
 
         self.sock.sendall(data_logging_stick_frame)
-        data = self.sock.recv(1024)
+        v5_response = self.sock.recv(1024)
 
         if self.verbose == 1:
-            print("RECD: " + str(binascii.hexlify(data, b" ")))
-        return data
+            print("RECD: " + v5_response.hex(" "))
+        return v5_response
 
     def _send_receive_modbus_frame(self, mb_request_frame):
         """Encodes mb_frame, sends/receives v5_frame, decodes response"""
@@ -184,15 +180,12 @@ class PySolarmanV5:
 
         for i, j in zip(range(num_registers), range(num_registers - 1, -1, -1)):
             response += modbus_values[i] << (j * 16)
-
         if signed:
             response = self.twos_complement(response, num_registers * 16)
-
-        response *= scale
-
+        if scale != 1:
+            response *= scale
         if bitmask is not None:
             response &= bitmask
-
         if bitshift is not None:
             response >>= bitshift
 
@@ -242,3 +235,40 @@ class PySolarmanV5:
         )
         modbus_values = self._get_modbus_response(mb_request_frame)
         return modbus_values
+
+    def read_coils(self, register_addr, quantity):
+        """Read coils from modbus slave and return list of coil values (Modbus function code 1)"""
+        mb_request_frame = rtu.read_coils(self.mb_slave_id, register_addr, quantity)
+        modbus_values = self._get_modbus_response(mb_request_frame)
+        return modbus_values
+
+    def read_discrete_inputs(self, register_addr, quantity):
+        """Read discrete inputs from modbus slave and return list of input values (Modbus function code 2)"""
+        mb_request_frame = rtu.read_discrete_inputs(
+            self.mb_slave_id, register_addr, quantity
+        )
+        modbus_values = self._get_modbus_response(mb_request_frame)
+        return modbus_values
+
+    def write_single_coil(self, register_addr, value):
+        """Write single coil value to modbus slave (Modbus function code 5)
+
+        Only valid values are 0xFF00 (On) and 0x0000 (Off)
+        """
+        mb_request_frame = rtu.write_single_coil(self.mb_slave_id, register_addr, value)
+        modbus_values = self._get_modbus_response(mb_request_frame)
+        return modbus_values
+
+    def send_raw_modbus_frame(self, mb_request_frame):
+        """Send raw modbus frame and return modbus response frame
+
+        Wrapper for internal method _send_receive_modbus_frame()
+        """
+        return self._send_receive_modbus_frame(mb_request_frame)
+
+    def send_raw_modbus_frame_parsed(self, mb_request_frame):
+        """Send raw modbus frame and return parsed modbusresponse list
+
+        Wrapper around internal method _get_modbus_response()
+        """
+        return self._get_modbus_response(mb_request_frame)
