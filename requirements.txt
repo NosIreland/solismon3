@@ -1,3 +1,4 @@
 umodbus
 paho-mqtt
 prometheus-client
+pysolarmanV5

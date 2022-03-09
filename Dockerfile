@@ -5,10 +5,8 @@ EXPOSE 18000
 LABEL MAINTAINER="Andrius Kozeniauskas"
 LABEL NAME=solismon3
 
-RUN mkdir /solismon3 \
-  && mkdir /solismon3/pysolarmanv5
+RUN mkdir /solismon3
 COPY *.py *.txt /solismon3/
-COPY pysolarmanv5/* /solismon3/pysolarmanv5/
 
 WORKDIR /solismon3
 

@@ -1,3 +1,4 @@
+# ver. 0.0.28
 import config.config as config
 import config.registers as registers
 import logging
@@ -172,6 +173,10 @@ def publish_mqtt():
         for metric, value in metrics_dict.items():
             mqtt_dict[metric] = value[1]
         mqtt_json = dumps(mqtt_dict)
+
+        def on_message(mqttc, userdata, msg):
+            print(f"Message received [{msg.topic}]: {msg.payload}")
+
 
         mqttc = mqtt.Client()
         mqttc.connect(config.MQTT_SERVER, config.MQTT_PORT, config.MQTT_KEEPALIVE)
