@@ -1,4 +1,4 @@
-# ver. 0.0.28
+# ver. 0.0.29
 import config.config as config
 import config.registers as registers
 import logging
