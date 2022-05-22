@@ -5,7 +5,7 @@ This is based on great work by [jmccrohan](https://github.com/jmccrohan/pysolarm
 
 The data is pulled directly from Solis WiFi stick. You need to provide serial number and IP address of the stick.
 Metrics are published to MQTT and Prometheus, or just MQTT
-The polled registers and their meaning are stored in registers.py file. The list is not final. 
+The registers to be polled and their meaning are stored in registers.py file. I have populated file already with registers that I use. The list is not final but shoudl be good enough for most cases.
 
 ## Configuration
 ### config.py
