@@ -92,6 +92,7 @@ all_regs = (
         ('total_battery_charge_1', 'Total Battery Charge 1(kWh)'),
         ('total_battery_charge_2', 'Total Battery Charge 2(kWh)'),
         ('today_battery_charge', 'Today Battery Charge(0.1kWh)'),
+        ('today_battery_discharge', 'Today Battery Discharge(0.1kWh)'),
         ('yesterday_battery_charge', 'Yesterday Battery Charge(0.1kWh)'),
         ('total_battery_discharge_1', 'Total Battery Discharge 1(kWh)'),
         ('total_battery_discharge_2', 'Total Battery Discharge 2(kWh)'),
