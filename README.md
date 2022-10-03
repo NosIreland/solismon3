@@ -17,6 +17,8 @@ INVERTER_PORT = 8899          # Port number
 MQTT_SERVER = "192.168.1.20"  # IP address of MQTT server
 MQTT_PORT = 1883              # Port number of MQTT server
 MQTT_TOPIC = "solis/METRICS"  # MQTT topic to use
+MQTT_USER = "foo"             # MQTT auth user (blank to disable auth)
+MQTT_PASS = "bar"             # MQTT auth password
 CHECK_INTERVAL = 30           # How often to check(seconds), only applies when 'PROMETHEUS = False' otherwise uses Prometheus scrape interval
 MQTT_KEEPALIVE = 60           # MQTT keepalive
 PROMETHEUS = False            # Enable Prometheus exporter

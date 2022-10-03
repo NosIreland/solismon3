@@ -179,6 +179,8 @@ def publish_mqtt():
 
 
         mqttc = mqtt.Client()
+        if config.MQTT_USER != '':
+            mqttc.username_pw_set(config.MQTT_USER, config.MQTT_PASS)
         mqttc.connect(config.MQTT_SERVER, config.MQTT_PORT, config.MQTT_KEEPALIVE)
         mqttc.on_connect = logging.info(f'Connected to MQTT {config.MQTT_SERVER}:{config.MQTT_PORT}')
 
