@@ -82,7 +82,20 @@ def scrape_solis(debug):
             try:
                 logging.debug(f'Scrapping registers {reg} length {reg_len}')
                 # read registers at address , store result in regs list
-                regs = modbus.read_input_registers(register_addr=reg, quantity=reg_len)
+                if (reg >= 40000 and reg <= 49999):
+                    # holding registers
+                    regs = modbus.read_holding_registers(register_addr=reg, quantity=reg_len)
+                elif (reg >= 10001 and reg <= 19999):
+                    # discrete registers
+                    regs = modbus.read_discrete_inputs(register_addr=reg, quantity=reg_len)
+                elif (reg >= 30000 and reg <= 39999):
+                    # input registers
+                    regs = modbus.read_input_registers(register_addr=reg, quantity=reg_len)
+                else:
+                    logging.error(f'Cannot read registers {reg} length {reg_len} {repr(e)}')
+                    sleep(3)  # hold before retry
+                    continue
+
                 logging.debug(regs)
             except Exception as e:
                 if c == 3:
