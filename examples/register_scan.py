@@ -24,6 +24,15 @@ def main():
             continue
     print("Finished scanning holding registers")
 
+    print("Scanning discrete input registers")
+    for x in range(10000, 19999):
+        try:
+            val = modbus.read_discrete_inputs(register_addr=x, quantity=1)[0]
+            print(f"Register: {x:05}\t\tValue: {val:05} ({val:#06x})")
+        except (V5FrameError, umodbus.exceptions.IllegalDataAddressError):
+            continue
+    print("Finished scanning holding registers")
+
 
 if __name__ == "__main__":
     main()

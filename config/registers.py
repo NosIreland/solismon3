@@ -2,6 +2,22 @@
 # Add * in front of the register name if you do not want it to be presented to Prometheus or published to MQTT
 
 all_regs = (
+    (12501, (
+        ('no_grid', 'No Grid'),
+        ('grid_overvoltage', 'Grid Overvoltage'),
+        ('grid_undervoltage', 'Grid Undervoltage'),
+        ('grid_overfrequency', 'Grid Overfrequency'),
+        ('grid_underfrequency', 'Grid Underfrequency'),
+        ('grid_imbalance', 'Grid Imbalance'),
+        ('grid_frequency_jitter', 'Grid Frequency Jitter'),
+        ('grid_impedance_too_large', 'Grid Impedance Too Large'),
+        ('grid_current_tracking_fault', 'Grid Current Tracking Fault'),
+        ('meter_communication_failed', 'Meter Communication Failed'),
+        ('failsafe', 'Fail Safe'))),
+    (12533, (
+        ('battery_not_connected', 'Battery Not Connected'),
+        ('battery_overvoltage_detection', 'Battery Overvoltage Detection'),
+        ('battery_undervoltage_detection', 'Battery Undervoltage Detection'))),
     (33022, (
         ('system_year', 'System Year(0-99)'),
         ('system_month', 'System Month'),
@@ -145,8 +161,26 @@ all_regs = (
         ('meter_total_active_imported_1', 'Meter Total Active Imported 1(0.01kWh)'),
         ('meter_total_active_imported_2', 'Meter Total Active Imported 2(0.01kWh)'),
         ('meter_total_active_exported_1', 'Meter Total Active Exported 1(0.01kWh)'),
-        ('meter_total_active_exported_2', 'Meter Total Active Exported 2(0.01kWh)')))
-        )
+        ('meter_total_active_exported_2', 'Meter Total Active Exported 2(0.01kWh)'))),
+    (43141, (
+        ('timed_charge_current', 'Timed Charge Current'),
+        ('timed_discharge_current', 'Timed Discharge Current'),
+        ('timed_charge_start_hour', 'Timed Charge Start Hour'),
+        ('timed_charge_start_minute', 'Timed Charge Start Minute'),
+        ('timed_charge_stop_hour', 'Timed Charge Stop Hour'),
+        ('timed_charge_stop_minute', 'Timed Charge Stop Minute'),
+        ('timed_discharge_start_hour', 'Timed Discharge Start Hour'),
+        ('timed_discharge_start_minute', 'Timed Discharge Start Minute'),
+        ('timed_discharge_stop_hour', 'Timed Discharge Stop Hour'),
+        ('timed_discharge_stop_minute', 'Timed Discharge Stop Minute'))),
+    (43114, (
+        ('battery_charge_and_discharge_enabled', 'Battery Charge and Discharge Enabled'))),
+    (43119, (
+        ('battery_undervoltage_protection_setting', 'Battery Undervoltage Protection Setting'),
+        ('battery_float_voltage_setting', 'Battery Float Voltage Setting'),
+        ('battery_charge_voltage_setting', 'Battery Charge Voltage Setting'),
+        ('battery_overvoltage_protection_setting', 'Battery Overvoltage Protection Setting')))
+)
 
 
 # For future
